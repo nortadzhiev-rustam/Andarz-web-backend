@@ -1,67 +1,99 @@
 # Andarz Web Backend
 
-A RESTful API backend for the **Andarz** (quotes & sayings) web application, built with **Laravel 13**.
+Laravel 13 REST API backend for the [andarz-web](https://github.com/nortadzhiev-rustam/andarz-web) educational platform (Next.js frontend).
 
 ## Architecture
 
 ```
 app/
 ├── Http/
-│   ├── Controllers/Api/        # Thin controllers — delegate to services
+│   ├── Controllers/Api/
 │   │   ├── AuthController.php
-│   │   ├── AuthorController.php
-│   │   ├── CategoryController.php
-│   │   └── QuoteController.php
+│   │   ├── CourseController.php
+│   │   ├── BlogController.php
+│   │   └── InstructorController.php
 │   ├── Middleware/
-│   │   ├── AdminMiddleware.php      # Role-based access guard
-│   │   └── ForceJsonResponse.php   # Forces JSON Accept header
-│   ├── Requests/                   # Form Request validation
-│   │   ├── Auth/, Author/, Category/, Quote/
-│   └── Resources/                  # JSON API transformers
-│       ├── AuthorResource.php, CategoryResource.php
-│       ├── QuoteResource.php, UserResource.php
-├── Models/                         # User, Quote, Category, Author
+│   │   ├── AdminMiddleware.php
+│   │   └── ForceJsonResponse.php
+│   ├── Requests/             # Form Request validation
+│   │   ├── Auth/, Course/, Blog/, Instructor/
+│   └── Resources/            # JSON API transformers (camelCase output)
+│       ├── CourseResource.php, CourseModuleResource.php, CourseLessonResource.php
+│       ├── BlogPostResource.php, InstructorResource.php, UserResource.php
+├── Models/
+│   ├── User.php              # role: student | instructor | admin
+│   ├── Instructor.php
+│   ├── Course.php            # with modules, lessons, instructor
+│   ├── CourseModule.php
+│   ├── CourseLesson.php
+│   └── BlogPost.php
 ├── Providers/
-│   └── AppServiceProvider.php      # Binds interfaces → implementations
+│   └── AppServiceProvider.php   # binds interfaces → implementations
 ├── Repositories/
-│   ├── Contracts/                  # Repository interfaces
-│   └── Eloquent*Repository.php     # Eloquent implementations
+│   ├── Contracts/               # RepositoryInterface + domain interfaces
+│   └── Eloquent*Repository.php  # Eloquent implementations
 └── Services/
-    ├── AuthService.php, AuthorService.php
-    ├── CategoryService.php, QuoteService.php
+    ├── AuthService.php
+    ├── CourseService.php
+    ├── BlogService.php
+    └── InstructorService.php
 ```
+
+## Domain Models (match andarz-web TypeScript types)
+
+### Course
+All fields are returned in **camelCase** to exactly match the frontend `Course` TypeScript type:
+`id`, `title`, `slug`, `description`, `shortDescription`, `thumbnail`, `price`, `discountPrice`,
+`level`, `category`, `tags`, `instructor` (nested), `modules` (nested with lessons), `duration`,
+`studentsCount`, `rating`, `reviewsCount`, `language`, `lastUpdated`, `isPublished`, `isFeatured`
+
+### User
+`id`, `name`, `email`, `avatar`, `role` (student|instructor|admin), `enrolledCourses[]`, `createdAt`
+
+### BlogPost
+`id`, `title`, `slug`, `excerpt`, `content`, `thumbnail`, `author` (nested Instructor),
+`tags`, `category`, `publishedAt`, `readingTime`, `isPublished`
 
 ## API Endpoints
 
 ### Authentication
-| Method | Endpoint             | Auth | Description          |
-|--------|----------------------|------|----------------------|
-| POST   | /api/auth/register   | No   | Register             |
-| POST   | /api/auth/login      | No   | Login & get token    |
-| POST   | /api/auth/logout     | Yes  | Revoke token         |
-| GET    | /api/auth/me         | Yes  | Current user         |
+| Method | Endpoint            | Auth | Description       |
+|--------|---------------------|------|-------------------|
+| POST   | /api/auth/register  | No   | Register (role=student) |
+| POST   | /api/auth/login     | No   | Login, get token  |
+| POST   | /api/auth/logout    | Yes  | Revoke token      |
+| GET    | /api/auth/me        | Yes  | Current user + enrollments |
 
-### Quotes
-| Method | Endpoint              | Auth | Admin | Description       |
-|--------|-----------------------|------|-------|-------------------|
-| GET    | /api/quotes           | No   | No    | List active        |
-| GET    | /api/quotes/featured  | No   | No    | Featured quotes    |
-| GET    | /api/quotes/random    | No   | No    | Random quote       |
-| GET    | /api/quotes/{id}      | No   | No    | Single quote       |
-| POST   | /api/quotes           | Yes  | No    | Create             |
-| PUT    | /api/quotes/{id}      | Yes  | No    | Update             |
-| DELETE | /api/quotes/{id}      | Yes  | No    | Delete             |
+### Courses
+| Method | Endpoint                      | Auth  | Admin | Description        |
+|--------|-------------------------------|-------|-------|--------------------|
+| GET    | /api/courses                  | No    | No    | All published (filterable by `?category=&level=&featured=1`) |
+| GET    | /api/courses/featured         | No    | No    | Featured only      |
+| GET    | /api/courses/by-slug/{slug}   | No    | No    | By slug            |
+| GET    | /api/courses/{id}             | No    | No    | By ID              |
+| POST   | /api/courses/{id}/enroll      | Yes   | No    | Enroll             |
+| POST   | /api/courses                  | Yes   | Yes   | Create             |
+| PUT    | /api/courses/{id}             | Yes   | Yes   | Update             |
+| DELETE | /api/courses/{id}             | Yes   | Yes   | Delete             |
 
-### Categories & Authors
-| Method | Endpoint              | Auth | Admin | Description |
-|--------|-----------------------|------|-------|-------------|
-| GET    | /api/categories       | No   | No    | List        |
-| GET    | /api/categories/{id}  | No   | No    | Show        |
-| POST   | /api/categories       | Yes  | Yes   | Create      |
-| PUT    | /api/categories/{id}  | Yes  | Yes   | Update      |
-| DELETE | /api/categories/{id}  | Yes  | Yes   | Delete      |
+### Blog
+| Method | Endpoint                   | Auth | Admin | Description |
+|--------|----------------------------|------|-------|-------------|
+| GET    | /api/blog                  | No   | No    | All published posts |
+| GET    | /api/blog/by-slug/{slug}   | No   | No    | By slug     |
+| GET    | /api/blog/{id}             | No   | No    | By ID       |
+| POST   | /api/blog                  | Yes  | Yes   | Create      |
+| PUT    | /api/blog/{id}             | Yes  | Yes   | Update      |
+| DELETE | /api/blog/{id}             | Yes  | Yes   | Delete      |
 
-_(same pattern for /api/authors)_
+### Instructors
+| Method | Endpoint                   | Auth | Admin | Description |
+|--------|----------------------------|------|-------|-------------|
+| GET    | /api/instructors           | No   | No    | List        |
+| GET    | /api/instructors/{id}      | No   | No    | Show        |
+| POST   | /api/instructors           | Yes  | Yes   | Create      |
+| PUT    | /api/instructors/{id}      | Yes  | Yes   | Update      |
+| DELETE | /api/instructors/{id}      | Yes  | Yes   | Delete      |
 
 ## Getting Started
 
@@ -71,29 +103,39 @@ cp .env.example .env
 php artisan key:generate
 touch database/database.sqlite
 php artisan migrate
-php artisan db:seed      # optional demo data
+php artisan db:seed      # seeds demo admin, courses, blog posts
 php artisan serve
 ```
 
-The API is available at `http://localhost:8000/api`.
+API available at `http://localhost:8000/api`.
 
 ## Authentication
 
-Uses **Laravel Sanctum** bearer tokens.
+Laravel Sanctum bearer tokens.
 
 ```
-Authorization: Bearer {token}
+Authorization: ******
 ```
 
 ## Demo Credentials (after seeding)
 
-| Role  | Email              | Password |
-|-------|--------------------|----------|
-| Admin | admin@andarz.test  | password |
-| User  | user@andarz.test   | password |
+| Role    | Email                   | Password |
+|---------|-------------------------|----------|
+| Admin   | admin@andarz.test       | password |
+| Student | student@andarz.test     | password |
+
+## Connecting to the Frontend
+
+In your `andarz-web` `.env.local`:
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000/api
+```
+
+Then replace `src/lib/api.ts` mock functions to call this backend.
 
 ## Testing
 
 ```bash
-php artisan test
+php artisan test   # 35 feature tests
 ```

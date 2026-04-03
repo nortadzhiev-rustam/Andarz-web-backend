@@ -1,57 +1,60 @@
 <?php
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\AuthorController;
-use App\Http\Controllers\Api\CategoryController;
-use App\Http\Controllers\Api\QuoteController;
+use App\Http\Controllers\Api\BlogController;
+use App\Http\Controllers\Api\CourseController;
+use App\Http\Controllers\Api\InstructorController;
 use Illuminate\Support\Facades\Route;
 
-// Public routes
+// ── Authentication ─────────────────────────────────────────────────────────────
 Route::prefix('auth')->name('auth.')->group(function () {
     Route::post('register', [AuthController::class, 'register'])->name('register');
     Route::post('login',    [AuthController::class, 'login'])->name('login');
-});
 
-Route::prefix('quotes')->name('quotes.')->group(function () {
-    Route::get('/',        [QuoteController::class, 'index'])->name('index');
-    Route::get('featured', [QuoteController::class, 'featured'])->name('featured');
-    Route::get('random',   [QuoteController::class, 'random'])->name('random');
-    Route::get('{id}',     [QuoteController::class, 'show'])->name('show')->whereNumber('id');
-});
-
-Route::prefix('categories')->name('categories.')->group(function () {
-    Route::get('/',    [CategoryController::class, 'index'])->name('index');
-    Route::get('{id}', [CategoryController::class, 'show'])->name('show')->whereNumber('id');
-});
-
-Route::prefix('authors')->name('authors.')->group(function () {
-    Route::get('/',    [AuthorController::class, 'index'])->name('index');
-    Route::get('{id}', [AuthorController::class, 'show'])->name('show')->whereNumber('id');
-});
-
-// Authenticated routes
-Route::middleware('auth:sanctum')->group(function () {
-    Route::prefix('auth')->name('auth.')->group(function () {
+    Route::middleware('auth:sanctum')->group(function () {
         Route::post('logout', [AuthController::class, 'logout'])->name('logout');
         Route::get('me',      [AuthController::class, 'me'])->name('me');
     });
+});
 
-    Route::prefix('quotes')->name('quotes.')->group(function () {
-        Route::post('/',      [QuoteController::class, 'store'])->name('store');
-        Route::put('{id}',    [QuoteController::class, 'update'])->name('update')->whereNumber('id');
-        Route::delete('{id}', [QuoteController::class, 'destroy'])->name('destroy')->whereNumber('id');
+// ── Courses (public read, auth write, admin full) ──────────────────────────────
+Route::prefix('courses')->name('courses.')->group(function () {
+    Route::get('/',                  [CourseController::class, 'index'])->name('index');
+    Route::get('featured',           [CourseController::class, 'featured'])->name('featured');
+    Route::get('by-slug/{slug}',     [CourseController::class, 'showBySlug'])->name('showBySlug');
+    Route::get('{course}',           [CourseController::class, 'show'])->name('show')->whereNumber('course');
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('{course}/enroll', [CourseController::class, 'enroll'])->name('enroll')->whereNumber('course');
     });
 
-    // Admin-only write access
-    Route::middleware('admin')->group(function () {
-        Route::prefix('categories')->name('categories.')->group(function () {
-            Route::post('/',      [CategoryController::class, 'store'])->name('store');
-            Route::put('{id}',    [CategoryController::class, 'update'])->name('update')->whereNumber('id');
-            Route::delete('{id}', [CategoryController::class, 'destroy'])->name('destroy')->whereNumber('id');
-        });
-        Route::prefix('authors')->name('authors.')->group(function () {
-            Route::post('/',      [AuthorController::class, 'store'])->name('store');
-            Route::put('{id}',    [AuthorController::class, 'update'])->name('update')->whereNumber('id');
-            Route::delete('{id}', [AuthorController::class, 'destroy'])->name('destroy')->whereNumber('id');
-        });
+    Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+        Route::post('/',         [CourseController::class, 'store'])->name('store');
+        Route::put('{course}',   [CourseController::class, 'update'])->name('update')->whereNumber('course');
+        Route::delete('{course}',[CourseController::class, 'destroy'])->name('destroy')->whereNumber('course');
+    });
+});
+
+// ── Blog (public read, admin write) ───────────────────────────────────────────
+Route::prefix('blog')->name('blog.')->group(function () {
+    Route::get('/',                [BlogController::class, 'index'])->name('index');
+    Route::get('by-slug/{slug}',   [BlogController::class, 'showBySlug'])->name('showBySlug');
+    Route::get('{blog}',           [BlogController::class, 'show'])->name('show')->whereNumber('blog');
+
+    Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+        Route::post('/',       [BlogController::class, 'store'])->name('store');
+        Route::put('{blog}',   [BlogController::class, 'update'])->name('update')->whereNumber('blog');
+        Route::delete('{blog}',[BlogController::class, 'destroy'])->name('destroy')->whereNumber('blog');
+    });
+});
+
+// ── Instructors (public read, admin write) ─────────────────────────────────────
+Route::prefix('instructors')->name('instructors.')->group(function () {
+    Route::get('/',                    [InstructorController::class, 'index'])->name('index');
+    Route::get('{instructor}',         [InstructorController::class, 'show'])->name('show')->whereNumber('instructor');
+
+    Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+        Route::post('/',              [InstructorController::class, 'store'])->name('store');
+        Route::put('{instructor}',    [InstructorController::class, 'update'])->name('update')->whereNumber('instructor');
+        Route::delete('{instructor}', [InstructorController::class, 'destroy'])->name('destroy')->whereNumber('instructor');
     });
 });
